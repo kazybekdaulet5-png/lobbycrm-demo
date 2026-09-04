@@ -1,0 +1,1066 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+<title>LobbyCRM</title>
+
+<!-- Google Fonts: Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+
+<!-- Tailwind (play CDN) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+        colors: {
+          brand: { 50:'#eef2ff',100:'#e0e7ff',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca' }
+        },
+        boxShadow: { card: '0 1px 2px rgba(0,0,0,.04), 0 8px 24px -8px rgba(0,0,0,.10)' }
+      }
+    }
+  }
+</script>
+
+<style>
+  :root{ --bg:#0b0f19; --fg:#e5e7eb; }
+  html,body{ background:var(--bg); color:var(--fg); margin:0; font-family:'Inter',ui-sans-serif,system-ui,sans-serif; }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:rgba(148,163,184,.35); border-radius:8px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  @keyframes lc-pulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(239,68,68,.45);} 50%{ box-shadow:0 0 0 6px rgba(239,68,68,0);} }
+  .lc-dot-live{ animation: lc-pulse 1.8s ease-in-out infinite; }
+  @keyframes lc-slidein{ from{ transform:translateY(12px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  .lc-slidein{ animation: lc-slidein .35s ease-out; }
+  .lc-mono{ font-variant-numeric: tabular-nums; }
+
+  [x-cloak]{ display:none !important; }
+</style>
+
+<!-- Root app -->
+<div x-data="app()" x-init="init()" x-cloak :class="theme" class="min-h-screen bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
+
+  <!-- ============ HEADER ============ -->
+  <header class="sticky top-0 z-30 border-b border-slate-200/70 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-2.5">
+        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white text-lg shadow-card">🎱</div>
+        <div class="leading-tight">
+          <div class="font-extrabold text-lg tracking-tight flex items-center gap-2">LobbyCRM
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 align-middle">DEMO</span>
+          </div>
+          <div class="text-xs text-slate-500 dark:text-slate-400">Бильярд · PlayStation 5 · Бар</div>
+        </div>
+      </div>
+
+      <nav class="ml-2 flex items-center gap-1 bg-slate-100 dark:bg-slate-900 rounded-xl p-1">
+        <button @click="view='dashboard'" :class="view==='dashboard' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'" class="px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">Карта зала</button>
+        <button @click="view='bar'" :class="view==='bar' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'" class="px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">Бар и склад</button>
+        <button @click="view='analytics'" :class="view==='analytics' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'" class="px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">Аналитика</button>
+      </nav>
+
+      <div class="ml-auto flex items-center gap-2">
+        <div class="hidden md:block text-xs text-slate-500 dark:text-slate-400 mr-1">
+          Смена с <span class="font-semibold text-slate-700 dark:text-slate-200" x-text="fmtTime(shiftStartedAt)"></span>
+        </div>
+        <div class="hidden lg:flex items-center gap-1.5 text-xs text-slate-400 mr-1" :title="'Ключ хранилища: '+STORAGE_KEY">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+          <span x-text="syncStatusLabel(tick)"></span>
+        </div>
+        <a href="booking.html" target="_blank" rel="noopener" title="Открыть страницу онлайн-бронирования для клиентов" class="hidden sm:flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-500/10 hover:bg-brand-100 dark:hover:bg-brand-500/20 transition-colors">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          Страница бронирования
+        </a>
+        <button @click="resetDemo()" title="Сбросить демо-данные" class="h-9 w-9 grid place-items-center rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+        </button>
+        <button @click="toggleTheme()" title="Сменить тему" class="h-9 w-9 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <svg x-show="theme==='dark'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+          <svg x-show="theme!=='dark'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+
+    <!-- ============ DASHBOARD ============ -->
+    <template x-if="view==='dashboard'">
+      <div class="lc-slidein">
+
+        <!-- quick stats strip -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-card border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">Свободно</div>
+            <div class="text-2xl font-extrabold text-emerald-500" x-text="zones.filter(z=>z.status==='free').length + ' / ' + zones.length"></div>
+          </div>
+          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-card border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">Занято</div>
+            <div class="text-2xl font-extrabold text-red-500" x-text="zones.filter(z=>z.status==='occupied').length"></div>
+          </div>
+          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-card border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">Часовых броней сегодня</div>
+            <div class="text-2xl font-extrabold text-amber-500" x-text="zones.reduce((s,z)=>s+upcomingBookings(z, tick).length, 0)"></div>
+          </div>
+          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-card border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">Выручка смены</div>
+            <div class="text-2xl font-extrabold text-brand-600 dark:text-brand-400 lc-mono" x-text="fmtMoney(revenueShift(), tick)"></div>
+          </div>
+        </div>
+
+        <!-- Billiard section -->
+        <div class="flex items-center gap-2 mb-3 mt-2">
+          <span class="text-xl">🎱</span>
+          <h2 class="font-bold text-lg">Бильярд</h2>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
+          <template x-for="zone in zones.filter(z=>z.category==='billiard_ru'||z.category==='billiard_pool')" :key="'b-'+zone.id">
+            <div class="rounded-2xl border shadow-card p-4 flex flex-col gap-3 bg-white dark:bg-slate-900"
+                 :class="zone.status==='occupied' ? 'border-red-300/60 dark:border-red-500/30' : (upcomingBookings(zone, tick).length ? 'border-amber-300/60 dark:border-amber-500/30' : 'border-emerald-300/60 dark:border-emerald-500/30')">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <div class="font-bold" x-text="zone.name"></div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400" x-text="zone.category==='billiard_ru' ? 'Русский бильярд' : 'Пул'"></div>
+                </div>
+                <span class="text-[11px] font-bold px-2 py-1 rounded-full flex items-center gap-1"
+                      :class="zone.status==='occupied' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'">
+                  <span class="h-1.5 w-1.5 rounded-full" :class="zone.status==='occupied' ? 'bg-red-500 lc-dot-live' : 'bg-emerald-500'"></span>
+                  <span x-text="zone.status==='occupied' ? 'Занят' : 'Свободен'"></span>
+                </span>
+              </div>
+
+              <template x-if="zone.status==='occupied'">
+                <div class="space-y-1">
+                  <div class="text-2xl font-extrabold lc-mono" x-text="fmtDuration(zone, tick)"></div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400">К оплате</div>
+                  <div class="text-xl font-bold text-brand-600 dark:text-brand-400 lc-mono" x-text="fmtMoney(totalCost(zone, tick))"></div>
+                  <div class="text-[11px] text-slate-400" x-text="'время '+fmtMoney(timeCost(zone, tick))+' · бар '+fmtMoney(barCost(zone))+' ('+zone.order.reduce((s,i)=>s+i.qty,0)+' поз.)'"></div>
+                </div>
+              </template>
+
+              <template x-if="zone.status==='free'">
+                <div class="text-sm text-slate-500 dark:text-slate-400"><span class="font-semibold text-slate-700 dark:text-slate-200" x-text="fmtMoney(zone.rate)"></span> / час</div>
+              </template>
+
+              <!-- Почасовые брони на сегодня для ЭТОГО стола. Показываются ВСЕГДА (и когда
+                   стол сейчас свободен, и когда занят игрой прямо сейчас) — бронь на 19:00
+                   не блокирует стол целиком, а только сам час 19:00. -->
+              <template x-if="upcomingBookings(zone, tick).length">
+                <div class="space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Брони на сегодня</div>
+                  <template x-for="b in upcomingBookings(zone, tick)" :key="b.hour">
+                    <div class="flex items-center justify-between gap-2 text-xs bg-amber-50 dark:bg-amber-500/10 rounded-lg px-2 py-1.5">
+                      <div class="min-w-0 truncate">
+                        <span class="font-bold text-amber-700 dark:text-amber-400" x-text="b.hour"></span>
+                        <span class="text-slate-600 dark:text-slate-300" x-text="' — ' + (b.guestName || 'бронь администратора')"></span>
+                        <span x-show="b.guestPhone" class="text-slate-400" x-text="' · ' + b.guestPhone"></span>
+                        <span x-show="b.source==='online'" class="ml-1 text-[9px] font-bold px-1 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400">Онлайн</span>
+                      </div>
+                      <div class="flex items-center gap-1 shrink-0">
+                        <button @click="startSessionFromBooking(zone.id, b.hour)" title="Заселить сейчас" class="h-6 w-6 grid place-items-center rounded-md bg-brand-600 hover:bg-brand-700 text-white text-[11px] leading-none">▶</button>
+                        <button @click="cancelBooking(zone.id, b.hour)" title="Отменить бронь" class="h-6 w-6 grid place-items-center rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-red-100 dark:hover:bg-red-500/20 text-slate-500 hover:text-red-500 text-[11px] leading-none">✕</button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <div class="flex gap-2 mt-1">
+                <template x-if="zone.status==='free'">
+                  <button @click="openSessionModal(zone.id)" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl py-2 transition-colors">▶ Открыть сессию</button>
+                </template>
+                <template x-if="zone.status==='occupied'">
+                  <button @click="modal={type:'bar', zoneId:zone.id}" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-sm font-semibold rounded-xl py-2 transition-colors">🍹 Бар</button>
+                </template>
+                <template x-if="zone.status==='occupied'">
+                  <button @click="modal={type:'checkout', zoneId:zone.id}" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl py-2 transition-colors">💳 Закрыть</button>
+                </template>
+                <!-- Стол может играть прямо сейчас И одновременно иметь бронь на более
+                     поздний час — почасовое бронирование доступно и для занятых столов. -->
+                <template x-if="zone.status==='occupied'">
+                  <button @click="openSessionModal(zone.id)" title="Забронировать час на сегодня" class="px-3 bg-slate-100 dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/10 text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 text-sm font-semibold rounded-xl py-2 transition-colors">🕐</button>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- PS5 section -->
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-xl">🎮</span>
+          <h2 class="font-bold text-lg">PlayStation 5</h2>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <template x-for="zone in zones.filter(z=>z.category==='ps5')" :key="'p-'+zone.id">
+            <div class="rounded-2xl border shadow-card p-4 flex flex-col gap-3 bg-white dark:bg-slate-900"
+                 :class="zone.status==='occupied' ? 'border-red-300/60 dark:border-red-500/30' : (upcomingBookings(zone, tick).length ? 'border-amber-300/60 dark:border-amber-500/30' : 'border-emerald-300/60 dark:border-emerald-500/30')">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <div class="font-bold" x-text="zone.name"></div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400">PlayStation 5</div>
+                </div>
+                <span class="text-[11px] font-bold px-2 py-1 rounded-full flex items-center gap-1"
+                      :class="zone.status==='occupied' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'">
+                  <span class="h-1.5 w-1.5 rounded-full" :class="zone.status==='occupied' ? 'bg-red-500 lc-dot-live' : 'bg-emerald-500'"></span>
+                  <span x-text="zone.status==='occupied' ? 'Занят' : 'Свободен'"></span>
+                </span>
+              </div>
+
+              <template x-if="zone.status==='occupied'">
+                <div class="space-y-1">
+                  <div class="text-2xl font-extrabold lc-mono" x-text="fmtDuration(zone, tick)"></div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400">К оплате</div>
+                  <div class="text-xl font-bold text-brand-600 dark:text-brand-400 lc-mono" x-text="fmtMoney(totalCost(zone, tick))"></div>
+                  <div class="text-[11px] text-slate-400" x-text="'время '+fmtMoney(timeCost(zone, tick))+' · бар '+fmtMoney(barCost(zone))+' ('+zone.order.reduce((s,i)=>s+i.qty,0)+' поз.)'"></div>
+                </div>
+              </template>
+
+              <template x-if="zone.status==='free'">
+                <div class="text-sm text-slate-500 dark:text-slate-400"><span class="font-semibold text-slate-700 dark:text-slate-200" x-text="fmtMoney(zone.rate)"></span> / час</div>
+              </template>
+
+              <!-- Почасовые брони на сегодня для ЭТОГО стола. Показываются ВСЕГДА (и когда
+                   стол сейчас свободен, и когда занят игрой прямо сейчас) — бронь на 19:00
+                   не блокирует стол целиком, а только сам час 19:00. -->
+              <template x-if="upcomingBookings(zone, tick).length">
+                <div class="space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Брони на сегодня</div>
+                  <template x-for="b in upcomingBookings(zone, tick)" :key="b.hour">
+                    <div class="flex items-center justify-between gap-2 text-xs bg-amber-50 dark:bg-amber-500/10 rounded-lg px-2 py-1.5">
+                      <div class="min-w-0 truncate">
+                        <span class="font-bold text-amber-700 dark:text-amber-400" x-text="b.hour"></span>
+                        <span class="text-slate-600 dark:text-slate-300" x-text="' — ' + (b.guestName || 'бронь администратора')"></span>
+                        <span x-show="b.guestPhone" class="text-slate-400" x-text="' · ' + b.guestPhone"></span>
+                        <span x-show="b.source==='online'" class="ml-1 text-[9px] font-bold px-1 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400">Онлайн</span>
+                      </div>
+                      <div class="flex items-center gap-1 shrink-0">
+                        <button @click="startSessionFromBooking(zone.id, b.hour)" title="Заселить сейчас" class="h-6 w-6 grid place-items-center rounded-md bg-brand-600 hover:bg-brand-700 text-white text-[11px] leading-none">▶</button>
+                        <button @click="cancelBooking(zone.id, b.hour)" title="Отменить бронь" class="h-6 w-6 grid place-items-center rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-red-100 dark:hover:bg-red-500/20 text-slate-500 hover:text-red-500 text-[11px] leading-none">✕</button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <div class="flex gap-2 mt-1">
+                <template x-if="zone.status==='free'">
+                  <button @click="openSessionModal(zone.id)" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl py-2 transition-colors">▶ Открыть сессию</button>
+                </template>
+                <template x-if="zone.status==='occupied'">
+                  <button @click="modal={type:'bar', zoneId:zone.id}" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-sm font-semibold rounded-xl py-2 transition-colors">🍹 Бар</button>
+                </template>
+                <template x-if="zone.status==='occupied'">
+                  <button @click="modal={type:'checkout', zoneId:zone.id}" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl py-2 transition-colors">💳 Закрыть</button>
+                </template>
+                <!-- Стол может играть прямо сейчас И одновременно иметь бронь на более
+                     поздний час — почасовое бронирование доступно и для занятых столов. -->
+                <template x-if="zone.status==='occupied'">
+                  <button @click="openSessionModal(zone.id)" title="Забронировать час на сегодня" class="px-3 bg-slate-100 dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/10 text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 text-sm font-semibold rounded-xl py-2 transition-colors">🕐</button>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- ============ BAR / WAREHOUSE ============ -->
+    <template x-if="view==='bar'">
+      <div class="lc-slidein">
+        <h2 class="font-bold text-lg mb-4">Бар и склад</h2>
+
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-card border border-slate-200/60 dark:border-slate-800 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-xs uppercase">
+              <tr>
+                <th class="text-left font-semibold px-4 py-3">Товар</th>
+                <th class="text-left font-semibold px-4 py-3">Цена, ₸</th>
+                <th class="text-left font-semibold px-4 py-3">Остаток</th>
+                <th class="text-left font-semibold px-4 py-3">Статус</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="item in bar" :key="item.id">
+                <tr class="border-t border-slate-100 dark:border-slate-800">
+                  <td class="px-4 py-3">
+                    <div class="font-semibold" x-text="item.name"></div>
+                    <div class="text-xs text-slate-400" x-text="item.category"></div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <input type="number" min="0" step="50" x-model.number="item.price" @change="save()" class="w-24 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-2 py-1">
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <button @click="item.stock=Math.max(0,item.stock-1); save()" class="h-7 w-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold">−</button>
+                      <span class="w-8 text-center font-semibold lc-mono" x-text="item.stock"></span>
+                      <button @click="item.stock++; save()" class="h-7 w-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold">+</button>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="text-[11px] font-bold px-2 py-1 rounded-full" :class="item.stock<10 ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'" x-text="item.stock<10 ? 'Заканчивается' : 'В наличии'"></span>
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <button @click="bar=bar.filter(b=>b.id!==item.id); save()" class="text-slate-400 hover:text-red-500 transition-colors">🗑</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- add new product -->
+        <div class="mt-4 bg-white dark:bg-slate-900 rounded-2xl shadow-card border border-slate-200/60 dark:border-slate-800 p-4">
+          <div class="text-sm font-semibold mb-3">Добавить товар</div>
+          <div class="flex flex-wrap gap-2">
+            <input x-model="newItem.name" placeholder="Название" class="flex-1 min-w-[160px] rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm">
+            <select x-model="newItem.category" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm">
+              <option>Напитки</option><option>Снеки</option><option>Кухня</option>
+            </select>
+            <input x-model.number="newItem.price" type="number" placeholder="Цена" class="w-28 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm">
+            <input x-model.number="newItem.stock" type="number" placeholder="Остаток" class="w-28 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm">
+            <button @click="addCatalogItem()" class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg px-4 py-2">+ Добавить</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ============ ANALYTICS ============ -->
+    <template x-if="view==='analytics'">
+      <div class="lc-slidein space-y-6">
+        <h2 class="font-bold text-lg">Аналитика смены</h2>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-card border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">Выручка смены</div>
+            <div class="text-2xl font-extrabold text-brand-600 dark:text-brand-400 lc-mono" x-text="fmtMoney(revenueShift(), tick)"></div>
+          </div>
+          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-card border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">Сессий закрыто</div>
+            <div class="text-2xl font-extrabold" x-text="sessionsShift().length"></div>
+          </div>
+          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-card border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">Средний чек</div>
+            <div class="text-2xl font-extrabold lc-mono" x-text="fmtMoney(avgCheck())"></div>
+          </div>
+          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-card border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">Занято сейчас</div>
+            <div class="text-2xl font-extrabold" x-text="zones.filter(z=>z.status==='occupied').length + ' / ' + zones.length"></div>
+          </div>
+        </div>
+
+        <!-- time vs bar revenue -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-card border border-slate-200/60 dark:border-slate-800">
+          <div class="text-sm font-semibold mb-3">Структура выручки</div>
+          <template x-for="row in [{label:'⏱ От времени', val: timeRevenueShift(), color:'bg-brand-500'}, {label:'🍹 От бара', val: barRevenueShift(), color:'bg-emerald-500'}]" :key="row.label">
+            <div class="mb-2 last:mb-0">
+              <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                <span x-text="row.label"></span>
+                <span class="lc-mono" x-text="fmtMoney(row.val)"></span>
+              </div>
+              <div class="h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-500" :class="row.color" :style="'width:'+(revenueShift()>0 ? Math.round(row.val/revenueShift()*100) : 0)+'%'"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- theft protection callout -->
+        <div class="bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-2xl p-5 shadow-card">
+          <div class="font-bold mb-2 flex items-center gap-2"><span>🔒</span> Как LobbyCRM исключает воровство</div>
+          <div class="text-sm space-y-1.5 text-brand-50">
+            <div>✓ Каждая продажа проходит только через систему — наличные и безнал сверяются автоматически.</div>
+            <div>✓ Время стола/приставки считается поминутно и не может быть занижено вручную.</div>
+            <div>✓ Отчёт по смене падает владельцу в Telegram — администратор не может «забыть» операцию.</div>
+          </div>
+        </div>
+
+        <!-- transactions table -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-card border border-slate-200/60 dark:border-slate-800 overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-800 text-sm font-semibold">Последние операции</div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[640px]">
+              <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-xs uppercase">
+                <tr>
+                  <th class="text-left font-semibold px-4 py-2">Стол</th>
+                  <th class="text-left font-semibold px-4 py-2">Длит.</th>
+                  <th class="text-left font-semibold px-4 py-2">Время</th>
+                  <th class="text-left font-semibold px-4 py-2">Бар</th>
+                  <th class="text-left font-semibold px-4 py-2">Итого</th>
+                  <th class="text-left font-semibold px-4 py-2">Оплата</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="s in [...sessionsShift()].reverse()" :key="s.id">
+                  <tr class="border-t border-slate-100 dark:border-slate-800">
+                    <td class="px-4 py-2 font-medium" x-text="s.zoneName"></td>
+                    <td class="px-4 py-2 text-slate-500" x-text="s.durationMin+' мин'"></td>
+                    <td class="px-4 py-2 lc-mono" x-text="fmtMoney(s.timeCost)"></td>
+                    <td class="px-4 py-2 lc-mono" x-text="fmtMoney(s.barCost)"></td>
+                    <td class="px-4 py-2 font-semibold lc-mono" x-text="fmtMoney(s.total)"></td>
+                    <td class="px-4 py-2"><span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800" x-text="s.payment"></span></td>
+                  </tr>
+                </template>
+                <tr x-show="sessionsShift().length===0"><td colspan="6" class="px-4 py-6 text-center text-slate-400">Пока нет закрытых сессий за эту смену</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- telegram report -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-card border border-slate-200/60 dark:border-slate-800">
+          <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
+            <div>
+              <div class="font-semibold">Автоотчёт владельцу в Telegram</div>
+              <div class="text-xs text-slate-500 dark:text-slate-400">В конце смены бот присылает сводку боссу — без участия администратора</div>
+            </div>
+            <button @click="sendShiftReport()" class="bg-[#229ED9] hover:brightness-110 text-white text-sm font-semibold rounded-xl px-4 py-2 flex items-center gap-2 shrink-0">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21.94 4.5c.26-1.1-.85-2-1.9-1.56L2.7 10.7c-1.13.47-1.12 2.06.02 2.51l4.5 1.78 1.7 5.53c.28.9 1.44 1.15 2.06.44l2.4-2.72 4.6 3.42c.87.65 2.12.18 2.35-.88l3.61-16.28z"/></svg>
+              Завершить смену и отправить отчёт
+            </button>
+          </div>
+
+          <template x-if="showTelegramPreview">
+            <div class="lc-slidein flex gap-3 items-start bg-[#e7f4fb] dark:bg-slate-800/60 rounded-2xl p-4">
+              <div class="h-9 w-9 rounded-full bg-[#229ED9] text-white grid place-items-center shrink-0 font-bold">L</div>
+              <div class="bg-white dark:bg-slate-900 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-md">
+                <div class="text-xs font-semibold text-[#229ED9] mb-1">LobbyCRM Bot</div>
+                <div class="text-sm whitespace-pre-line" x-text="telegramReport"></div>
+                <div class="text-[10px] text-slate-400 mt-2 text-right" x-text="fmtTime(Date.now())+' ✓✓ Доставлено'"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </main>
+
+  <!-- ============ MODAL: open / reserve session ============ -->
+  <template x-if="modal && modal.type==='open'">
+    <div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" @click.self="modal=null" x-transition.opacity>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-5" x-transition.scale.opacity>
+        <template x-if="findZone(modal.zoneId)">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <div class="font-bold text-lg" x-text="findZone(modal.zoneId).name"></div>
+              <button @click="modal=null" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xl leading-none">✕</button>
+            </div>
+            <div class="text-sm text-slate-500 dark:text-slate-400 mb-4" x-text="fmtMoney(findZone(modal.zoneId).rate)+' / час'"></div>
+
+            <!-- «Начать сейчас» имеет смысл только если стол физически свободен прямо
+                 сейчас. Почасовая бронь ниже доступна ВСЕГДА, в т.ч. для занятого стола —
+                 это резерв на будущий час, а не блокировка стола целиком. -->
+            <template x-if="findZone(modal.zoneId).status==='free'">
+              <button @click="startSession(modal.zoneId)" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl py-3 mb-4 transition-colors">▶ Начать сейчас</button>
+            </template>
+
+            <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Забронировать час на сегодня</div>
+            <template x-if="availableHours(findZone(modal.zoneId), tick).length">
+              <div class="grid grid-cols-3 gap-2">
+                <template x-for="h in availableHours(findZone(modal.zoneId), tick)" :key="h">
+                  <button @click="bookHourAsStaff(modal.zoneId, h)" class="rounded-xl border border-slate-200 dark:border-slate-700 hover:border-amber-400 hover:text-amber-600 dark:hover:text-amber-400 text-sm font-semibold py-2 transition-colors" x-text="h"></button>
+                </template>
+              </div>
+            </template>
+            <template x-if="!availableHours(findZone(modal.zoneId), tick).length">
+              <div class="text-sm text-slate-400">На сегодня свободных часов для брони больше нет</div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </div>
+  </template>
+
+  <!-- ============ MODAL: bar order ============ -->
+  <template x-if="modal && modal.type==='bar'">
+    <div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" @click.self="modal=null" x-transition.opacity>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg p-5 max-h-[85vh] flex flex-col" x-transition.scale.opacity>
+        <template x-if="findZone(modal.zoneId)">
+          <div class="flex flex-col min-h-0">
+            <div class="flex items-center justify-between mb-4 shrink-0">
+              <div class="font-bold text-lg">Заказ: <span x-text="findZone(modal.zoneId).name"></span></div>
+              <button @click="modal=null" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xl leading-none">✕</button>
+            </div>
+
+            <div class="space-y-2 overflow-y-auto pr-1">
+              <template x-for="item in bar" :key="item.id">
+                <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 dark:border-slate-800 px-3 py-2">
+                  <div class="min-w-0">
+                    <div class="font-semibold text-sm truncate" x-text="item.name"></div>
+                    <div class="text-xs text-slate-400" x-text="fmtMoney(item.price)+' · остаток '+item.stock"></div>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button @click="removeBarItem(modal.zoneId, item.id)" class="h-7 w-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold">−</button>
+                    <span class="w-6 text-center font-semibold lc-mono" x-text="orderQty(modal.zoneId, item.id)"></span>
+                    <button @click="addBarItem(modal.zoneId, item.id)" :disabled="item.stock<=0" :class="item.stock<=0 ? 'opacity-30 cursor-not-allowed' : ''" class="h-7 w-7 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold">+</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <div class="text-sm text-slate-500 dark:text-slate-400">Итого по бару</div>
+              <div class="font-bold lc-mono" x-text="fmtMoney(barCost(findZone(modal.zoneId)))"></div>
+            </div>
+            <button @click="modal=null" class="mt-3 w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-semibold rounded-xl py-2.5 transition-colors shrink-0">Готово</button>
+          </div>
+        </template>
+      </div>
+    </div>
+  </template>
+
+  <!-- ============ MODAL: checkout ============ -->
+  <template x-if="modal && modal.type==='checkout'">
+    <div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" @click.self="modal=null" x-transition.opacity>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-5" x-transition.scale.opacity>
+        <template x-if="findZone(modal.zoneId)">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="font-bold text-lg">Закрытие: <span x-text="findZone(modal.zoneId).name"></span></div>
+              <button @click="modal=null" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xl leading-none">✕</button>
+            </div>
+
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Время (<span x-text="fmtDuration(findZone(modal.zoneId), tick)"></span>)</span><span class="lc-mono" x-text="fmtMoney(timeCost(findZone(modal.zoneId), tick))"></span></div>
+              <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Бар (<span x-text="findZone(modal.zoneId).order.reduce((s,i)=>s+i.qty,0)"></span> поз.)</span><span class="lc-mono" x-text="fmtMoney(barCost(findZone(modal.zoneId)))"></span></div>
+              <div class="border-t border-slate-100 dark:border-slate-800 my-2"></div>
+              <div class="flex justify-between text-lg font-extrabold"><span>Итого</span><span class="text-brand-600 dark:text-brand-400 lc-mono" x-text="fmtMoney(totalCost(findZone(modal.zoneId), tick))"></span></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 mt-5">
+              <button @click="confirmCheckout(modal.zoneId, 'Наличные')" class="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 transition-colors">💵 Наличные</button>
+              <button @click="confirmCheckout(modal.zoneId, 'Карта')" class="rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 transition-colors">💳 Карта</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </template>
+
+  <!-- ============ TOASTS ============ -->
+  <div class="fixed bottom-4 right-4 z-50 space-y-2 w-72">
+    <template x-for="t in toasts" :key="t.id">
+      <div class="lc-slidein bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl shadow-2xl px-4 py-3 text-sm font-medium" x-text="t.text"></div>
+    </template>
+  </div>
+</div>
+
+<!-- Alpine.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.5/cdn.min.js" defer></script>
+
+<script>
+  // =========================================================================
+  // LobbyCRM — демо-приложение. Все данные хранятся в localStorage браузера,
+  // бэкенд не требуется. Логика полностью на Alpine.js.
+  //
+  // СИНХРОНИЗАЦИЯ С booking.html
+  // -----------------------------------------------------------------------
+  // index.html и booking.html — два независимых файла, у которых нет общего
+  // сервера, поэтому обмен данными идёт исключительно через общий ключ
+  // localStorage STORAGE_KEY. Чтобы админка узнавала о новой брони «сразу»,
+  // используется НЕСКОЛЬКО независимых каналов одновременно (любой из них
+  // может не сработать в конкретном браузере/ситуации — вместе они дают
+  // надёжный результат):
+  //   1) BroadcastChannel — мгновенное сообщение другим вкладкам ЭТОГО же
+  //      origin, что localStorage изменился (самый быстрый способ).
+  //   2) window 'storage' — стандартное событие браузера; ВАЖНО: оно
+  //      срабатывает только в ДРУГИХ вкладках, а не в той, которая сама
+  //      записала данные — это нормальное поведение, а не баг.
+  //   3) 'pageshow'/'visibilitychange'/'focus' — подхватывают изменения,
+  //      когда админ переключился на вкладку или вернулся на страницу по
+  //      кнопке «назад» (браузеры часто восстанавливают такую страницу из
+  //      bfcache БЕЗ повторного запуска init(), поэтому старый код мог
+  //      показывать устаревшие данные именно в этом сценарии).
+  //   4) периодический опрос localStorage раз в несколько секунд — просто
+  //      подстраховка на случай, если 1-3 по какой-то причине не сработали.
+  //
+  // ВАЖНО (архитектурное ограничение localStorage): все 4 канала работают
+  // ТОЛЬКО между вкладками ОДНОГО браузера на ОДНОМ устройстве. Если гость
+  // бронирует со своего телефона, а администратор смотрит index.html на ПК
+  // клуба — это два разных браузера, и localStorage между ними в принципе
+  // не связан никаким из этих механизмов. Для синхронизации между разными
+  // устройствами нужен уже не localStorage, а общий бэкенд (например,
+  // Firebase/Supabase) — GitHub Pages это не блокирует, но потребует
+  // доработки хранилища.
+  // =========================================================================
+
+  const STORAGE_KEY = 'lobbycrm_v1';    // должен быть идентичен в booking.html
+  const SYNC_CHANNEL = 'lobbycrm_sync'; // должен быть идентичен в booking.html
+  const POLL_MS = 4000;
+
+  // Клуб работает «через полночь»: с 13:00 до 03:00 следующих суток. Эти два значения
+  // и BUSINESS_HOURS ниже должны быть ИДЕНТИЧНЫ в booking.html.
+  const OPENING_HOUR = 13;
+  const CLOSING_HOUR = 3;
+  // Последовательность часов одного рабочего дня в порядке следования: 13,14,…,23,0,1,2.
+  // Строим один раз при загрузке файла, а не пересчитываем на каждый вызов.
+  const BUSINESS_HOURS = [];
+  for (let h = OPENING_HOUR; h <= 23; h++) BUSINESS_HOURS.push(h);
+  for (let h = 0; h < CLOSING_HOUR; h++) BUSINESS_HOURS.push(h);
+
+  // Приводит МАССИВ столов из localStorage (в т.ч. сохранённый более ранней версией
+  // приложения — без поля bookings, со старым статусом 'reserved' и т.п.) к текущей
+  // ожидаемой форме. БЕЗ этой нормализации обращение к zone.bookings.some(...) для
+  // «сырых» данных старой схемы бросает исключение и ломает рендер всей карточки —
+  // именно так исчезали и слоты на booking.html, и кнопка «Открыть сессию» в admin.
+  function normalizeZones(rawZones) {
+    return (Array.isArray(rawZones) ? rawZones : []).map(z => {
+      const status = z && z.status === 'occupied' ? 'occupied' : 'free';
+      return {
+        id: z.id,
+        name: z.name,
+        category: z.category,
+        rate: z.rate,
+        status,
+        startedAt: status === 'occupied' ? (z.startedAt || Date.now()) : null,
+        order: Array.isArray(z.order) ? z.order : [],
+        bookings: Array.isArray(z.bookings)
+          ? z.bookings.filter(b => b && typeof b.hour === 'string' && typeof b.date === 'string')
+          : [],
+      };
+    });
+  }
+
+  function app() {
+    return {
+      // ---- состояние UI ----
+      view: 'dashboard',        // dashboard | bar | analytics
+      theme: 'dark',            // dark | light
+      modal: null,               // {type:'open'|'bar'|'checkout', zoneId}
+      toasts: [],
+      tick: 0,                   // тикает раз в секунду, чтобы таймеры/суммы/статус синхронизации обновлялись
+      showTelegramPreview: false,
+      telegramReport: '',
+      newItem: { name:'', category:'Напитки', price:0, stock:0 },
+      STORAGE_KEY,
+      lastSyncAt: Date.now(),
+      _bc: null,
+
+      // ---- данные ----
+      zones: [],
+      bar: [],
+      sessionsLog: [],
+      shiftStartedAt: Date.now(),
+
+      // =======================================================================
+      // ИНИЦИАЛИЗАЦИЯ
+      // =======================================================================
+      init() {
+        const saved = this.load();
+        if (saved) {
+          Object.assign(this, saved);
+        } else {
+          this.seed();
+        }
+        // Тикер для живых таймеров/сумм на занятых столах и статуса синхронизации
+        setInterval(() => { this.tick++; }, 1000);
+
+        // Подключаем все каналы синхронизации с booking.html (см. комментарий выше)
+        this.initSync(() => this.syncFromStorage());
+      },
+
+      // Регистрирует все каналы «узнать, что localStorage изменился в другом
+      // месте» и на каждый вызывает переданный колбэк onChange.
+      initSync(onChange) {
+        if ('BroadcastChannel' in window) {
+          this._bc = new BroadcastChannel(SYNC_CHANNEL);
+          this._bc.onmessage = () => onChange();
+        }
+        window.addEventListener('storage', (e) => {
+          if (e.key === STORAGE_KEY) onChange();
+        });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) onChange(); });
+        window.addEventListener('pageshow', () => onChange());
+        window.addEventListener('focus', () => onChange());
+        setInterval(onChange, POLL_MS);
+      },
+
+      // Сообщает другим вкладкам того же origin, что state изменился —
+      // не дожидаясь их следующего опроса.
+      notifySync() {
+        try { this._bc && this._bc.postMessage('changed'); } catch (e) {}
+      },
+
+      // Перечитывает localStorage и подмешивает свежие данные в UI.
+      // Тост показываем только если что-то реально изменилось (не спамим
+      // уведомлениями на каждый тик опроса).
+      syncFromStorage() {
+        const fresh = this.load();
+        if (!fresh) return;
+        const changed = JSON.stringify(fresh.zones) !== JSON.stringify(this.zones);
+        this.zones = fresh.zones || this.zones;
+        this.bar = fresh.bar || this.bar;
+        this.sessionsLog = fresh.sessionsLog || this.sessionsLog;
+        this.shiftStartedAt = fresh.shiftStartedAt || this.shiftStartedAt;
+        this.lastSyncAt = Date.now();
+        if (changed) this.toast('🔄 Обновлено: есть новая бронь с сайта');
+      },
+
+      // Текст индикатора «когда синхронизировано» в шапке (зависит от tick,
+      // чтобы «X сек назад» само обновлялось раз в секунду).
+      syncStatusLabel(_tick) {
+        const sec = Math.max(0, Math.round((Date.now() - this.lastSyncAt) / 1000));
+        if (sec < 2) return 'Синхронизировано только что';
+        if (sec < 60) return 'Синхронизировано ' + sec + ' сек назад';
+        return 'Синхронизировано ' + Math.round(sec / 60) + ' мин назад';
+      },
+
+      // Заполняет демо-данными: столы, приставки, каталог бара и историю смены
+      seed() {
+        const now = Date.now();
+        this.shiftStartedAt = now - (3 * 60 + 10) * 60000; // смена началась 3ч10м назад
+
+        // Демо-часы для примеров почасовых броней ниже: 2 и 4 позиции вперёд по
+        // рабочей последовательности часов (13..23,0..2) от «сейчас», аккуратно
+        // прижатые к концу рабочего дня, если он вот-вот закроется. Если сейчас
+        // клуб закрыт (3:00–12:59), берём начало следующего рабочего дня.
+        const curIdx = this.hourSeqIndex(new Date(now).getHours());
+        const baseIdx = curIdx === -1 ? 0 : curIdx;
+        const demoHour1 = String(BUSINESS_HOURS[Math.min(BUSINESS_HOURS.length - 1, baseIdx + 2)]).padStart(2, '0') + ':00';
+        const demoHour2 = String(BUSINESS_HOURS[Math.min(BUSINESS_HOURS.length - 1, baseIdx + 4)]).padStart(2, '0') + ':00';
+        const today = this.todayStr();
+
+        // ВАЖНО: этот список столов/приставок (id, name, category, rate) — «источник истины».
+        // booking.html хранит собственную резервную копию тех же 8 позиций на случай,
+        // если гость откроет страницу бронирования до первого запуска index.html.
+        // При изменении столов здесь — обнови и SEED_ZONES в booking.html.
+        //
+        // zone.status отражает ТОЛЬКО живую игру прямо сейчас (occupied/free).
+        // zone.bookings — отдельный список почасовых броней на сегодня; стол может быть
+        // одновременно occupied (кто-то играет прямо сейчас) И иметь бронь на более
+        // поздний час — это разные, независимые друг от друга вещи (см. зону №1 ниже).
+        this.zones = [
+          { id: 1, name: 'Русский бильярд №1', category: 'billiard_ru', rate: 3000, status: 'occupied',
+            startedAt: now - 47 * 60000,
+            order: [ { itemId:'cola', name:'Кола 0.5л', price:500, qty:2 }, { itemId:'chips', name:'Чипсы Lays', price:800, qty:1 } ],
+            bookings: [ { hour: demoHour2, guestName: 'Данияр', guestPhone: '+7 707 123 45 67', source: 'online', date: today, createdAt: now - 10 * 60000 } ] },
+          { id: 2, name: 'Русский бильярд №2', category: 'billiard_ru', rate: 3000, status: 'free', startedAt: null, order: [], bookings: [] },
+          { id: 3, name: 'Пул №1', category: 'billiard_pool', rate: 2500, status: 'free', startedAt: null, order: [],
+            bookings: [ { hour: demoHour1, guestName: '', guestPhone: '', source: 'staff', date: today, createdAt: now - 4 * 60000 } ] },
+          { id: 4, name: 'Пул №2', category: 'billiard_pool', rate: 2500, status: 'free', startedAt: null, order: [], bookings: [] },
+          { id: 5, name: 'PS5 №1', category: 'ps5', rate: 2000, status: 'free', startedAt: null, order: [], bookings: [] },
+          { id: 6, name: 'PS5 №2', category: 'ps5', rate: 2000, status: 'free', startedAt: null, order: [], bookings: [] },
+          { id: 7, name: 'PS5 №3', category: 'ps5', rate: 2000, status: 'free', startedAt: null, order: [],
+            bookings: [ { hour: demoHour1, guestName: 'Айгерим', guestPhone: '+7 701 222 33 44', source: 'online', date: today, createdAt: now - 5 * 60000 } ] },
+          { id: 8, name: 'PS5 VIP (2 экрана)', category: 'ps5', rate: 3500, status: 'free', startedAt: null, order: [], bookings: [] },
+        ];
+
+        this.bar = [
+          { id:'cola',     name:'Кола 0.5л',        category:'Напитки', price:500,  stock:38 },
+          { id:'energy',   name:'Энергетик',         category:'Напитки', price:900,  stock:22 },
+          { id:'water',    name:'Вода негаз. 0.5л',  category:'Напитки', price:300,  stock:50 },
+          { id:'chips',    name:'Чипсы Lays',        category:'Снеки',   price:800,  stock:14 },
+          { id:'crackers', name:'Сухарики',          category:'Снеки',   price:600,  stock:19 },
+          { id:'pizza',    name:'Пицца Пепперони',   category:'Кухня',   price:3500, stock:8  },
+          { id:'hookah',   name:'Кальян классический', category:'Кухня', price:5000, stock:99 },
+        ];
+
+        // История закрытых сессий за текущую смену (для аналитики)
+        this.sessionsLog = [
+          { id: 'h1', zoneName:'Пул №1', category:'billiard_pool', start: now-170*60000, end: now-140*60000, durationMin:30, timeCost:1250, barCost:1300, total:2550, payment:'Наличные', order:[{itemId:'cola',name:'Кола 0.5л',qty:2},{itemId:'chips',name:'Чипсы Lays',qty:1}] },
+          { id: 'h2', zoneName:'PS5 №2',  category:'ps5',          start: now-150*60000, end: now-90*60000,  durationMin:60, timeCost:2000, barCost:0,    total:2000, payment:'Карта',    order:[] },
+          { id: 'h3', zoneName:'Русский бильярд №2', category:'billiard_ru', start: now-120*60000, end: now-60*60000, durationMin:60, timeCost:3000, barCost:3500, total:6500, payment:'Наличные', order:[{itemId:'pizza',name:'Пицца Пепперони',qty:1}] },
+          { id: 'h4', zoneName:'PS5 №1',  category:'ps5',          start: now-80*60000,  end: now-20*60000,  durationMin:60, timeCost:2000, barCost:1800, total:3800, payment:'Карта',    order:[{itemId:'energy',name:'Энергетик',qty:2}] },
+          { id: 'h5', zoneName:'Пул №2',  category:'billiard_pool', start: now-50*60000,  end: now-10*60000,  durationMin:40, timeCost:1667, barCost:500,  total:2167, payment:'Наличные', order:[{itemId:'cola',name:'Кола 0.5л',qty:1}] },
+        ];
+
+        this.showTelegramPreview = false;
+        this.telegramReport = '';
+        this.save();
+      },
+
+      resetDemo() {
+        if (confirm('Сбросить все демо-данные к исходному состоянию?')) {
+          this.seed();
+          this.toast('Демо-данные сброшены');
+        }
+      },
+
+      // =======================================================================
+      // СОХРАНЕНИЕ / ЗАГРУЗКА (localStorage — вместо БД для демо)
+      // =======================================================================
+      save() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            zones: this.zones, bar: this.bar, sessionsLog: this.sessionsLog,
+            shiftStartedAt: this.shiftStartedAt, theme: this.theme
+          }));
+          this.lastSyncAt = Date.now();
+          this.notifySync(); // мгновенно подтолкнуть другие открытые вкладки (напр. booking.html)
+        } catch (e) { /* localStorage недоступен — просто работаем в памяти */ }
+      },
+      load() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          parsed.zones = normalizeZones(parsed.zones); // см. normalizeZones() выше
+          return parsed;
+        } catch (e) { return null; }
+      },
+
+      // =======================================================================
+      // ПОМОЩНИКИ
+      // =======================================================================
+      findZone(id) { return this.zones.find(z => z.id === id); },
+      orderQty(zoneId, itemId) {
+        const z = this.findZone(zoneId);
+        const it = z && z.order.find(o => o.itemId === itemId);
+        return it ? it.qty : 0;
+      },
+
+      // Прошедшее время сессии в формате ЧЧ:ММ:СС (зависит от tick для реактивности)
+      fmtDuration(zone, _tick) {
+        if (!zone || !zone.startedAt) return '00:00:00';
+        const s = Math.max(0, Math.floor((Date.now() - zone.startedAt) / 1000));
+        const h = String(Math.floor(s / 3600)).padStart(2, '0');
+        const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+        const sec = String(s % 60).padStart(2, '0');
+        return `${h}:${m}:${sec}`;
+      },
+      // Стоимость времени — считается ПОМИНУТНО по тарифу за час
+      timeCost(zone, _tick) {
+        if (!zone || !zone.startedAt) return 0;
+        const minutes = (Date.now() - zone.startedAt) / 60000;
+        return Math.round(minutes * (zone.rate / 60));
+      },
+      barCost(zone) {
+        if (!zone) return 0;
+        return zone.order.reduce((sum, i) => sum + i.price * i.qty, 0);
+      },
+      totalCost(zone, _tick) {
+        return this.timeCost(zone, _tick) + this.barCost(zone);
+      },
+
+      fmtMoney(n, _tick) {
+        n = Math.round(n || 0);
+        return n.toLocaleString('ru-RU') + ' ₸';
+      },
+      fmtTime(ts) {
+        if (!ts) return '—';
+        return new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      },
+
+      toast(text) {
+        const id = Date.now() + Math.random();
+        this.toasts.push({ id, text });
+        setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 3000);
+      },
+
+      // =======================================================================
+      // ДЕЙСТВИЯ СО СТОЛАМИ / ПРИСТАВКАМИ
+      // =======================================================================
+      openSessionModal(zoneId) { this.modal = { type: 'open', zoneId }; },
+
+      // opts.silent — не показывать тост (используется, когда вызов идёт «изнутри»
+      // другого действия, которое покажет своё собственное сообщение).
+      startSession(zoneId, opts) {
+        const z = this.findZone(zoneId);
+        if (!z) return;
+        z.status = 'occupied';
+        z.startedAt = Date.now();
+        z.order = [];
+        this.modal = null;
+        this.save();
+        if (!opts || !opts.silent) this.toast('Сессия открыта: ' + z.name);
+      },
+
+      // =======================================================================
+      // ПОЧАСОВЫЕ БРОНИ (zone.bookings) — независимы от zone.status.
+      // Бронь на конкретный час блокирует только этот час у ЭТОГО стола; все
+      // остальные часы и другие столы остаются свободными для брони.
+      //
+      // Клуб работает «через полночь» (13:00 → 03:00), поэтому «сегодняшний»
+      // рабочий день — это не календарная дата, а окно 13:00 текущих суток —
+      // 03:00 следующих. businessDateStr() возвращает ключ этого окна: если
+      // сейчас раньше 03:00 (т.е. это «хвост» вчерашнего рабочего дня, который
+      // ещё не закрылся), берём вчерашнюю календарную дату — так бронь на
+      // 23:00 и бронь на 01:00 той же ночи попадают под один и тот же ключ.
+      // =======================================================================
+      businessDateStr(d) {
+        const ref = new Date(d || Date.now());
+        if (ref.getHours() < CLOSING_HOUR) ref.setDate(ref.getDate() - 1);
+        return ref.getFullYear() + '-' + String(ref.getMonth() + 1).padStart(2, '0') + '-' + String(ref.getDate()).padStart(2, '0');
+      },
+      todayStr() { return this.businessDateStr(); },
+      // Позиция часа в последовательности рабочего дня (13,14,…,23,0,1,2), либо -1,
+      // если клуб сейчас закрыт (03:00–12:59) или час не входит в рабочее время.
+      hourSeqIndex(hour) { return BUSINESS_HOURS.indexOf(parseInt(hour, 10)); },
+      isHourBooked(zone, hour) {
+        return zone.bookings.some(b => b.hour === hour && b.date === this.todayStr());
+      },
+      // Брони этого стола на сегодня, ещё не прошедшие, отсортированные по часу —
+      // для отображения на карточке в админке. Сравнение идёт по ПОЗИЦИИ часа в
+      // рабочей последовательности, а не по числу часа напрямую — иначе бронь на
+      // 23:00 после полуночи (когда «сейчас» уже 00:xx) ошибочно сочтётся прошедшей.
+      upcomingBookings(zone, _tick) {
+        const today = this.todayStr();
+        const curIdx = this.hourSeqIndex(new Date().getHours());
+        return zone.bookings
+          .filter(b => b.date === today && (curIdx === -1 || this.hourSeqIndex(b.hour) >= curIdx))
+          .slice()
+          .sort((a, b) => this.hourSeqIndex(a.hour) - this.hourSeqIndex(b.hour));
+      },
+      // Свободные для брони часы сегодня у стола — НЕ зависит от zone.status:
+      // стол, в котором сейчас играют, всё равно можно забронировать на более
+      // поздний час. Если сейчас 03:00–12:59 (клуб закрыт) — броней не предлагаем.
+      availableHours(zone, _tick) {
+        if (!zone) return [];
+        const now = new Date();
+        const curIdx = this.hourSeqIndex(now.getHours());
+        if (curIdx === -1) return []; // клуб сейчас закрыт
+        let startIdx = curIdx + 1;
+        if (now.getMinutes() >= 45) startIdx++; // почти следующий час — сразу через час
+        const hours = [];
+        for (let i = startIdx; i < BUSINESS_HOURS.length; i++) {
+          const label = String(BUSINESS_HOURS[i]).padStart(2, '0') + ':00';
+          if (!this.isHourBooked(zone, label)) hours.push(label);
+        }
+        return hours;
+      },
+      // Клуб сейчас открыт (по часам работы, а не по занятости конкретного стола)?
+      isClubOpenNow(_tick) { return this.hourSeqIndex(new Date().getHours()) !== -1; },
+      // Быстрая бронь администратором на конкретный час (без данных гостя) —
+      // отличается от онлайн-брони через booking.html, у которой source==='online'
+      // и заполнены guestName/guestPhone.
+      bookHourAsStaff(zoneId, hour) {
+        const z = this.findZone(zoneId);
+        if (!z || this.isHourBooked(z, hour)) return;
+        z.bookings.push({ hour, guestName: '', guestPhone: '', source: 'staff', date: this.todayStr(), createdAt: Date.now() });
+        this.modal = null;
+        this.save();
+        this.toast(z.name + ': час ' + hour + ' придержан администратором');
+      },
+      // «Заселить» конкретную бронь прямо сейчас: снимаем именно эту почасовую
+      // бронь и открываем живую сессию (стол переходит в occupied).
+      startSessionFromBooking(zoneId, hour) {
+        const z = this.findZone(zoneId);
+        if (!z) return;
+        const today = this.todayStr();
+        z.bookings = z.bookings.filter(b => !(b.hour === hour && b.date === today));
+        this.startSession(zoneId, { silent: true });
+        this.toast('Гость заселён: ' + z.name + ' (бронь ' + hour + ')');
+      },
+      cancelBooking(zoneId, hour) {
+        const z = this.findZone(zoneId);
+        if (!z) return;
+        const today = this.todayStr();
+        z.bookings = z.bookings.filter(b => !(b.hour === hour && b.date === today));
+        this.save();
+        this.toast('Бронь на ' + hour + ' отменена: ' + z.name);
+      },
+
+      addBarItem(zoneId, itemId) {
+        const z = this.findZone(zoneId);
+        const catalogItem = this.bar.find(b => b.id === itemId);
+        if (!z || !catalogItem || catalogItem.stock <= 0) return;
+        let line = z.order.find(o => o.itemId === itemId);
+        if (line) { line.qty++; } else { z.order.push({ itemId, name: catalogItem.name, price: catalogItem.price, qty: 1 }); }
+        catalogItem.stock--;
+        this.save();
+      },
+      removeBarItem(zoneId, itemId) {
+        const z = this.findZone(zoneId);
+        const catalogItem = this.bar.find(b => b.id === itemId);
+        if (!z) return;
+        let line = z.order.find(o => o.itemId === itemId);
+        if (!line) return;
+        line.qty--;
+        if (catalogItem) catalogItem.stock++;
+        if (line.qty <= 0) z.order = z.order.filter(o => o.itemId !== itemId);
+        this.save();
+      },
+
+      openCheckout(zoneId) { this.modal = { type: 'checkout', zoneId }; },
+
+      confirmCheckout(zoneId, payment) {
+        const z = this.findZone(zoneId);
+        if (!z) return;
+        const tCost = this.timeCost(z);
+        const bCost = this.barCost(z);
+        this.sessionsLog.push({
+          id: 's' + Date.now(),
+          zoneName: z.name,
+          category: z.category,
+          start: z.startedAt,
+          end: Date.now(),
+          durationMin: Math.max(1, Math.ceil((Date.now() - z.startedAt) / 60000)),
+          timeCost: tCost,
+          barCost: bCost,
+          total: tCost + bCost,
+          payment,
+          order: z.order.map(o => ({ itemId: o.itemId, name: o.name, qty: o.qty }))
+        });
+        this.toast('Оплата принята: ' + this.fmtMoney(tCost + bCost) + ' (' + payment + ')');
+        z.status = 'free';
+        z.startedAt = null;
+        z.order = [];
+        this.modal = null;
+        this.save();
+      },
+
+      // =======================================================================
+      // БАР / СКЛАД
+      // =======================================================================
+      addCatalogItem() {
+        if (!this.newItem.name || this.newItem.price <= 0) { this.toast('Укажите название и цену'); return; }
+        this.bar.push({ id: 'c' + Date.now(), name: this.newItem.name, category: this.newItem.category, price: this.newItem.price, stock: this.newItem.stock || 0 });
+        this.newItem = { name: '', category: 'Напитки', price: 0, stock: 0 };
+        this.save();
+        this.toast('Товар добавлен в каталог');
+      },
+
+      // =======================================================================
+      // АНАЛИТИКА (фильтр по текущей смене — с момента shiftStartedAt)
+      // =======================================================================
+      sessionsShift() { return this.sessionsLog.filter(s => s.end >= this.shiftStartedAt); },
+      revenueShift() { return this.sessionsShift().reduce((sum, s) => sum + s.total, 0); },
+      timeRevenueShift() { return this.sessionsShift().reduce((sum, s) => sum + s.timeCost, 0); },
+      barRevenueShift() { return this.sessionsShift().reduce((sum, s) => sum + s.barCost, 0); },
+      avgCheck() {
+        const list = this.sessionsShift();
+        return list.length ? Math.round(this.revenueShift() / list.length) : 0;
+      },
+      topBarItem() {
+        const counts = {};
+        this.sessionsShift().forEach(s => s.order.forEach(o => { counts[o.name] = (counts[o.name] || 0) + o.qty; }));
+        const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        return entries.length ? entries[0][0] + ' (' + entries[0][1] + ' шт)' : '—';
+      },
+
+      // =======================================================================
+      // TELEGRAM-ОТЧЁТ (демо-симуляция — реальная отправка не выполняется)
+      // =======================================================================
+      sendShiftReport() {
+        const date = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+        this.telegramReport =
+`📊 LobbyCRM — отчёт по смене
+📅 ${date}
+💰 Выручка: ${this.fmtMoney(this.revenueShift())}
+🎟 Сессий: ${this.sessionsShift().length}
+🧾 Средний чек: ${this.fmtMoney(this.avgCheck())}
+⏱ От времени: ${this.fmtMoney(this.timeRevenueShift())}  ·  🍹 От бара: ${this.fmtMoney(this.barRevenueShift())}
+🔥 Топ товар бара: ${this.topBarItem()}
+✅ Все операции сверены автоматически, расхождений не обнаружено.`;
+        this.showTelegramPreview = true;
+        this.toast('Отчёт отправлен боту в Telegram');
+        this.save();
+      },
+
+      // =======================================================================
+      // ТЕМА
+      // =======================================================================
+      toggleTheme() { this.theme = this.theme === 'dark' ? 'light' : 'dark'; this.save(); },
+    };
+  }
+</script>
+</body>
+</html>
